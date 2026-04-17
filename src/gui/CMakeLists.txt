@@ -1,11 +1,12 @@
-add_library(network
-    JsonNetworkClient.cpp
+add_library(gui
+    LoginScreen.cpp
+    ChatRoomScreen.cpp
+    SettingsScreen.cpp
+    MainWindow.cpp
 )
 
-target_include_directories(network PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(gui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-target_link_libraries(network
-    Qt6::Network
-    QCoro::Core
-    QCoro::Network
+target_link_libraries(gui
+    Qt6::Widgets
 )
