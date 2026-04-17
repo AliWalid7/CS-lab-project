@@ -39,3 +39,36 @@
 
 # debug information files
 *.dwo
+# Build directories
+build/
+build-*/
+out/
+*.o
+*.obj
+
+# Qt specific
+*.pro.user
+*.qrc.depends
+moc_*.cpp
+ui_*.h
+qrc_*.cpp
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+Testing/
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
