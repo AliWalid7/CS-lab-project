@@ -2,8 +2,6 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QListWidget>
-#include <QLabel>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -24,8 +22,6 @@ public slots:
 
 private:
     Ui::MainWindow *ui;
-    QListWidget *userListWidget;
-    QLabel *titleLabel;
 };
 
-#endif // MAINWINDOW_H
+#endif

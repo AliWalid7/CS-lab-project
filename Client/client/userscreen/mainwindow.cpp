@@ -16,7 +16,6 @@ MainWindow::~MainWindow()
 void MainWindow::updateUserList(const QStringList &users)
 {
     ui->listWidget->clear();
-    for (const QString &user : users) {
+    for (const QString &user : users)
         ui->listWidget->addItem(user);
-    }
 }
