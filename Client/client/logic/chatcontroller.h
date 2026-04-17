@@ -16,14 +16,8 @@ public:
     bool removeOnlineUser(const QString &name);
     void clearOnlineUsers();
 
-public slots:
-    void setOnlineUsers(const QStringList &users);
-
 signals:
     void onlineUsersChanged(const QStringList &users);
-
-private:
-    bool isValidUserName(const QString &name) const;
 
     QStringList m_users;
 };
