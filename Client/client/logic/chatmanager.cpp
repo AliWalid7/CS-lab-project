@@ -1,4 +1,4 @@
-#include "chatmanager.h"
+#include "ChatManager.h"
 
 ChatManager::ChatManager(QObject *parent) : QObject(parent) {}
 
