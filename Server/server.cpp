@@ -1,37 +1,31 @@
 #include <iostream>
-#include <string_view>
+#include <string>
 #include <boost/asio.hpp>
 
 using boost::asio::ip::tcp;
 using boost::asio::awaitable;
 using boost::asio::co_spawn;
 using boost::asio::detached;
-using boost::asio::use_awaitable;
-using boost::asio::as_tuple;
 
-// Coroutine to handle an individual client's connection
 awaitable<void> handle_client(tcp::socket socket) {
     char data[1024];
 
-    // Read data from the client using as_tuple to get [error_code, bytes_read]
     auto [ec, bytes_read] = co_await socket.async_read_some(
-        boost::asio::buffer(data),
-        as_tuple(use_awaitable)
+        boost::asio::buffer(data)
     );
 
     if (!ec) {
-        std::cout << "Server received: " << std::string_view(data, bytes_read) << "\n";
+        std::string message(data, bytes_read);
+        std::cout << "Received: " << message << std::endl;
+        
+        std::string response = "OK: " + message;
+        co_await socket.async_write_some(
+            boost::asio::buffer(response)
+        );
     }
-    else {
-        std::cout << "Read error: " << ec.message() << "\n";
-    }
-
-    // Socket is automatically closed when it goes out of scope
 }
- 
-// Coroutine to listen for incoming connections
+
 awaitable<void> listener() {
-    // We grab a handle to the engine that is running this coroutine
     auto io_ctx = co_await boost::asio::this_coro::executor;
 
     tcp::acceptor acceptor(io_ctx, { tcp::v4(), 54321 });
