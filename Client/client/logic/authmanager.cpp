@@ -24,12 +24,9 @@ bool AuthManager::validateUsername(const QString& username, QString* errorOut) {
                    .arg(MAX_USERNAME_LEN));
         return false;
     }
-    // Allow letters, digits, underscore, hyphen. No whitespace, no symbols
-    // that could break the wire protocol.
     static const QRegularExpression allowed(QStringLiteral("^[A-Za-z0-9_-]+$"));
     if (!allowed.match(username).hasMatch()) {
-        setErr(QStringLiteral("Username may contain only letters, digits, "
-                              "underscores and hyphens."));
+        setErr(QStringLiteral("Username may contain only letters, digits, underscores and hyphens."));
         return false;
     }
 

@@ -23,6 +23,9 @@ signals:
     void disconnected();
     void errorOccurred(QString error);
     void messageReceived(Message msg);
+    void joinSuccess();
+    void userListReceived(QStringList users);
+    void userLeft(QString username);
 
 private:
     QTcpSocket *socket;

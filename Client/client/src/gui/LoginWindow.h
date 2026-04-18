@@ -29,6 +29,7 @@ private slots:
 
 private:
     Ui::LoginWindow *ui;
+    AuthManager *authManager;
 };
 
 #endif

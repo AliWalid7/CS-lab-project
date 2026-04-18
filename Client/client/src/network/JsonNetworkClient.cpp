@@ -37,6 +37,7 @@ void NetworkClient::sendChatMessage(const QString &username, const QString &text
 void NetworkClient::sendJsonMessage(const QJsonObject &json) {
     QJsonDocument doc(json);
     QByteArray data = doc.toJson(QJsonDocument::Compact);
+    data.append('\n');
     socket->write(data);
 }
 
@@ -63,10 +64,32 @@ void NetworkClient::setupConnections() {
         }
 
         QJsonObject json = doc.object();
-        Message msg;
-        msg.username = json["username"].toString();
-        msg.text = json["text"].toString();
-
-        emit messageReceived(msg);
+        QString type = json["type"].toString();
+        
+        if (type == "join_success") {
+            emit joinSuccess();
+        }
+        else if (type == "broadcast") {
+            Message msg;
+            msg.username = json["username"].toString();
+            msg.text = json["text"].toString();
+            emit messageReceived(msg);
+        }
+        else if (type == "error") {
+            QString errorMsg = json["message"].toString();
+            emit errorOccurred(errorMsg);
+        }
+        else if (type == "user_list") {
+            QStringList users;
+            QJsonArray usersArray = json["users"].toArray();
+            for (const auto& user : usersArray) {
+                users.append(user.toString());
+            }
+            emit userListReceived(users);
+        }
+        else if (type == "user_left") {
+            QString username = json["username"].toString();
+            emit userLeft(username);
+        }
     });
 }
