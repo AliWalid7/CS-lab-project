@@ -5,11 +5,11 @@ CONFIG += c++17
 SOURCES += \
     main.cpp \
     userscreen/mainwindow.cpp \
-    logic/chatcontroller.cpp
+    logic/chatmanager.cpp
 
 HEADERS += \
     userscreen/mainwindow.h \
-    logic/chatcontroller.h
+    logic/chatmanager.h
 
 FORMS += \
     userscreen/mainwindow.ui
