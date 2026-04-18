@@ -1,7 +1,7 @@
 #include "ChatWindow.h"
 #include "ui_ChatWindow.h"
-#include "../core/ChatManager.h"
-#include "../network/JsonNetworkClient.h"
+#include "core/ChatManager.h"
+#include "network/JsonNetworkClient.h"
 
 ChatWindow::ChatWindow(QWidget *parent)
     : QWidget(parent), ui(new Ui::ChatWindow), chatManager(nullptr), networkClient(nullptr)

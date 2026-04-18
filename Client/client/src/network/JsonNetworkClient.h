@@ -5,7 +5,7 @@
 #include <QTcpSocket>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include "message.h"
+#include "Message.h"
 
 class NetworkClient : public QObject {
     Q_OBJECT
@@ -14,6 +14,7 @@ public:
     explicit NetworkClient(QObject *parent = nullptr);
 
     void connectToServer(const QString &host, int port);
+    void disconnectFromServer();
     void sendMessage(const Message &msg);
     void sendJoinRequest(const QString &username);
     void sendChatMessage(const QString &username, const QString &text);

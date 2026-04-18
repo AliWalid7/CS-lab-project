@@ -1,6 +1,6 @@
 #include "LoginWindow.h"
 #include "ui_LoginWindow.h"
-#include "../core/AuthManager.h"
+#include "core/AuthManager.h"
 
 LoginWindow::LoginWindow(QWidget *parent)
     : QWidget(parent), ui(new Ui::LoginWindow)

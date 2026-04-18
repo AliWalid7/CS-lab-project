@@ -13,9 +13,14 @@ void NetworkClient::connectToServer(const QString &host, int port) {
     socket->connectToHost(host, port);
 }
 
+void NetworkClient::disconnectFromServer() {
+    socket->disconnectFromHost();
+}
+
 void NetworkClient::sendMessage(const Message &msg) {
     QJsonDocument doc(msg.toJson());
     QByteArray data = doc.toJson(QJsonDocument::Compact);
+    data.append('\n');
     socket->write(data);
 }
 
