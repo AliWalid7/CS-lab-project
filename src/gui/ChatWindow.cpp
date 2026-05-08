@@ -19,9 +19,19 @@ ChatWindow::ChatWindow(QWidget *parent)
     connect(chatManager, &ChatManager::usersChanged, this, &ChatWindow::updateUserList);
     
     connect(networkClient, &JsonNetworkClient::messageReceived, this, &ChatWindow::addMessage);
-    connect(networkClient, &JsonNetworkClient::connected, this, &ChatWindow::showConnectionStatus);
-    connect(networkClient, &JsonNetworkClient::disconnected, this, &ChatWindow::showConnectionStatus);
-    connect(networkClient, &JsonNetworkClient::errorOccurred, this, &ChatWindow::showConnectionStatus);
+    
+    connect(networkClient, &JsonNetworkClient::connected, this, [this]() {
+        showConnectionStatus("Connected", true);
+    });
+
+    connect(networkClient, &JsonNetworkClient::disconnected, this, [this]() {
+        showConnectionStatus("Disconnected", false);
+    });
+
+    connect(networkClient, &JsonNetworkClient::errorOccurred, this,
+            [this](const QString &error) {
+        showConnectionStatus(error, false);
+    });
 }
 
 ChatWindow::~ChatWindow() {

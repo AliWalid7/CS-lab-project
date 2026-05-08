@@ -4,7 +4,7 @@
 #include <QString>
 #include <QStringList>
 
-struct Message {
+struct ChatMessage {
     QString username;
     QString text;
 };

@@ -1,4 +1,4 @@
-#include "authmanager.h"
+#include "Authmanager.h"
 #include <QRegularExpression>
 
 AuthManager::AuthManager(QObject* parent)
@@ -81,9 +81,6 @@ void AuthManager::attemptLogin(const QString& username, const QString& password)
         return;
     }
 
-    // Input looks fine — hand off to the network layer.
-    // We optimistically store the username; it only "sticks" if the
-    // server replies with success (see onServerLoginResponse).
     m_currentUser = username;
     emit authRequested(username, password);
 }

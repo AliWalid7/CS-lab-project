@@ -24,6 +24,7 @@ public slots:
     void addMessage(const QString &sender, const QString &message, bool isMine);
     void updateUserList(const QStringList &users);
     void showConnectionStatus(const QString &status, bool isConnected);
+    void updateChatHistory(const QList<Message> &history);
 
 private slots:
     void onSendButtonClicked();
