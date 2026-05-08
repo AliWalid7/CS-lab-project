@@ -1,7 +1,8 @@
 #pragma once
-#include <QString>
-#include <QList>
 #include <QObject>
+#include <QList>
+#include <QString>
+#include <QStringList>
 
 struct Message {
     QString username;

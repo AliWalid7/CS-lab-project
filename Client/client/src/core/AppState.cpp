@@ -1,6 +1,11 @@
 #include "AppState.h"
 
-AppState::AppState(QObject *parent) : QObject(parent), m_currentScreen("login"), m_connected(false) {}
+#include "types.h"
+
+AppState::AppState(QObject *parent)
+    : QObject(parent), m_currentScreen(AppScreens::Login), m_connected(false)
+{
+}
 
 QString AppState::currentScreen() const
 {
@@ -9,6 +14,9 @@ QString AppState::currentScreen() const
 
 void AppState::setCurrentScreen(const QString& screen)
 {
+    if (m_currentScreen == screen)
+        return;
+
     m_currentScreen = screen;
     emit screenChanged(screen);
 }
@@ -20,6 +28,9 @@ bool AppState::isConnected() const
 
 void AppState::setConnected(bool status)
 {
+    if (m_connected == status)
+        return;
+
     m_connected = status;
     emit connectionChanged(status);
 }
