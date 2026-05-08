@@ -1,5 +1,7 @@
+#include "ChatService.h"
+#include "JsonProtocol.h"
+
 #include <boost/asio.hpp>
-#include <boost/json.hpp>
 #include <boost/json/src.hpp>
 
 #include <deque>
@@ -12,225 +14,150 @@
 using boost::asio::ip::tcp;
 namespace json = boost::json;
 
-class ChatSession;
+class TcpServer;
 
-class ChatServer {
+class TcpSession : public std::enable_shared_from_this<TcpSession> {
 public:
-    ChatServer(boost::asio::io_context& io, unsigned short port)
-        : acceptor_(io, tcp::endpoint(tcp::v4(), port)) {
+    TcpSession(int id, tcp::socket socket, TcpServer& server)
+        : id_(id), socket_(std::move(socket)), server_(server) {}
+
+    int id() const { return id_; }
+    void start();
+    void deliver(const json::object& message);
+
+private:
+    void readLine();
+    void writeNext();
+    void closeFromError(const boost::system::error_code& ec);
+
+    int id_;
+    tcp::socket socket_;
+    TcpServer& server_;
+    boost::asio::streambuf buffer_;
+    std::deque<std::string> outbox_;
+};
+
+class TcpServer {
+public:
+    TcpServer(boost::asio::io_context& io, unsigned short port)
+        : acceptor_(io, tcp::endpoint(tcp::v4(), port)),
+          chatService_([this](int clientId, const json::object& message) {
+              sendToClient(clientId, message);
+          }) {
         std::cout << "Server listening on port " << port << "\n";
         acceptClients();
     }
 
-    void join(const std::shared_ptr<ChatSession>& session, const std::string& username);
-    void leave(const std::shared_ptr<ChatSession>& session);
-    void routeMessage(const std::shared_ptr<ChatSession>& session, const json::object& message);
-    void sendUserList();
+    void onClientConnected(const std::shared_ptr<TcpSession>& session) {
+        sessions_[session->id()] = session;
+        chatService_.addClient(session->id());
+    }
+
+    void onClientDisconnected(int clientId) {
+        sessions_.erase(clientId);
+        chatService_.removeClient(clientId);
+        std::cout << "Client " << clientId << " disconnected\n";
+    }
+
+    void onMessageReceived(int clientId, const json::object& message) {
+        chatService_.handleMessage(clientId, message);
+    }
 
 private:
-    void acceptClients();
-    void broadcast(const json::object& message);
-    void sendToUser(const std::string& username, const json::object& message);
+    void acceptClients() {
+        acceptor_.async_accept([this](boost::system::error_code ec, tcp::socket socket) {
+            if (!ec) {
+                int clientId = nextClientId_++;
+                auto session = std::make_shared<TcpSession>(clientId, std::move(socket), *this);
+                onClientConnected(session);
+                session->start();
+            } else {
+                std::cerr << "Accept error: " << ec.message() << "\n";
+            }
+
+            acceptClients();
+        });
+    }
+
+    void sendToClient(int clientId, const json::object& message) {
+        auto it = sessions_.find(clientId);
+        if (it != sessions_.end()) {
+            it->second->deliver(message);
+        }
+    }
 
     tcp::acceptor acceptor_;
-    std::set<std::shared_ptr<ChatSession>> sessions_;
-    std::unordered_map<std::string, std::shared_ptr<ChatSession>> users_;
+    int nextClientId_ = 1;
+    std::unordered_map<int, std::shared_ptr<TcpSession>> sessions_;
+    ChatService chatService_;
 };
 
-class ChatSession : public std::enable_shared_from_this<ChatSession> {
-public:
-    ChatSession(tcp::socket socket, ChatServer& server)
-        : socket_(std::move(socket)), server_(server) {}
+void TcpSession::start() {
+    std::cout << "Client " << id_ << " connected: " << socket_.remote_endpoint() << "\n";
+    readLine();
+}
 
-    void start() {
-        std::cout << "Client connected: " << socket_.remote_endpoint() << "\n";
-        readLine();
+void TcpSession::deliver(const json::object& message) {
+    std::string data = JsonProtocol::serializeMessage(message);
+    bool writeInProgress = !outbox_.empty();
+    outbox_.push_back(std::move(data));
+
+    if (!writeInProgress) {
+        writeNext();
     }
+}
 
-    void deliver(const json::object& message) {
-        std::string data = json::serialize(message) + "\n";
-        bool writeInProgress = !outbox_.empty();
-        outbox_.push_back(std::move(data));
+void TcpSession::readLine() {
+    auto self = shared_from_this();
 
-        if (!writeInProgress) {
-            writeNext();
-        }
-    }
-
-    std::string username() const { return username_; }
-    void setUsername(std::string username) { username_ = std::move(username); }
-
-private:
-    void readLine() {
-        auto self = shared_from_this();
-
-        boost::asio::async_read_until(socket_, buffer_, '\n',
-            [this, self](boost::system::error_code ec, std::size_t) {
-                if (ec) {
-                    server_.leave(self);
-                    return;
-                }
-
-                std::istream input(&buffer_);
-                std::string line;
-                std::getline(input, line);
-
-                if (!line.empty() && line.back() == '\r') {
-                    line.pop_back();
-                }
-
-                handleLine(line);
-                readLine();
-            });
-    }
-
-    void handleLine(const std::string& line) {
-        boost::system::error_code ec;
-        json::value parsed = json::parse(line, ec);
-
-        if (ec || !parsed.is_object()) {
-            deliver({{"type", "error"}, {"message", "Invalid JSON message"}});
-            return;
-        }
-
-        json::object message = parsed.as_object();
-        std::string type = json::value_to<std::string>(message.if_contains("type") ? *message.if_contains("type") : json::value(""));
-
-        if (type == "join") {
-            const json::value* usernameValue = message.if_contains("username");
-            if (!usernameValue || !usernameValue->is_string()) {
-                deliver({{"type", "error"}, {"message", "Join request needs a username"}});
+    boost::asio::async_read_until(socket_, buffer_, '\n',
+        [this, self](boost::system::error_code ec, std::size_t) {
+            if (ec) {
+                closeFromError(ec);
                 return;
             }
 
-            server_.join(shared_from_this(), json::value_to<std::string>(*usernameValue));
-        } else if (type == "message") {
-            server_.routeMessage(shared_from_this(), message);
-        } else {
-            deliver({{"type", "error"}, {"message", "Unknown message type"}});
-        }
-    }
+            std::istream input(&buffer_);
+            std::string line;
+            std::getline(input, line);
 
-    void writeNext() {
-        auto self = shared_from_this();
+            if (!line.empty() && line.back() == '\r') {
+                line.pop_back();
+            }
 
-        boost::asio::async_write(socket_, boost::asio::buffer(outbox_.front()),
-            [this, self](boost::system::error_code ec, std::size_t) {
-                if (ec) {
-                    server_.leave(self);
-                    return;
-                }
+            std::string errorMessage;
+            std::optional<json::object> message = JsonProtocol::parseLine(line, errorMessage);
 
-                outbox_.pop_front();
-                if (!outbox_.empty()) {
-                    writeNext();
-                }
-            });
-    }
+            if (!message.has_value()) {
+                deliver({{"type", "error"}, {"message", errorMessage}});
+            } else {
+                server_.onMessageReceived(id_, *message);
+            }
 
-    tcp::socket socket_;
-    ChatServer& server_;
-    boost::asio::streambuf buffer_;
-    std::deque<std::string> outbox_;
-    std::string username_;
-};
-
-void ChatServer::acceptClients() {
-    acceptor_.async_accept([this](boost::system::error_code ec, tcp::socket socket) {
-        if (!ec) {
-            auto session = std::make_shared<ChatSession>(std::move(socket), *this);
-            sessions_.insert(session);
-            session->start();
-        } else {
-            std::cerr << "Accept error: " << ec.message() << "\n";
-        }
-
-        acceptClients();
-    });
+            readLine();
+        });
 }
 
-void ChatServer::join(const std::shared_ptr<ChatSession>& session, const std::string& username) {
-    if (username.empty()) {
-        session->deliver({{"type", "error"}, {"message", "Username cannot be empty"}});
-        return;
-    }
+void TcpSession::writeNext() {
+    auto self = shared_from_this();
 
-    if (users_.contains(username)) {
-        session->deliver({{"type", "error"}, {"message", "Username already taken"}});
-        return;
-    }
+    boost::asio::async_write(socket_, boost::asio::buffer(outbox_.front()),
+        [this, self](boost::system::error_code ec, std::size_t) {
+            if (ec) {
+                closeFromError(ec);
+                return;
+            }
 
-    session->setUsername(username);
-    users_[username] = session;
-
-    session->deliver({{"type", "join_success"}});
-    broadcast({{"type", "broadcast"}, {"username", "Server"}, {"text", username + " joined the chat"}});
-    sendUserList();
-
-    std::cout << username << " joined\n";
+            outbox_.pop_front();
+            if (!outbox_.empty()) {
+                writeNext();
+            }
+        });
 }
 
-void ChatServer::leave(const std::shared_ptr<ChatSession>& session) {
-    if (!sessions_.erase(session)) {
-        return;
-    }
-
-    std::string username = session->username();
-    if (!username.empty()) {
-        users_.erase(username);
-        broadcast({{"type", "user_left"}, {"username", username}});
-        broadcast({{"type", "broadcast"}, {"username", "Server"}, {"text", username + " left the chat"}});
-        sendUserList();
-        std::cout << username << " disconnected\n";
-    } else {
-        std::cout << "Unnamed client disconnected\n";
-    }
-}
-
-void ChatServer::routeMessage(const std::shared_ptr<ChatSession>& session, const json::object& message) {
-    if (session->username().empty()) {
-        session->deliver({{"type", "error"}, {"message", "You must join before sending messages"}});
-        return;
-    }
-
-    const json::value* textValue = message.if_contains("text");
-    if (!textValue || !textValue->is_string()) {
-        session->deliver({{"type", "error"}, {"message", "Message needs text"}});
-        return;
-    }
-
-    std::string text = json::value_to<std::string>(*textValue);
-    json::object outgoing{{"type", "broadcast"}, {"username", session->username()}, {"text", text}};
-
-    // Optional private routing: {"type":"message", "to":"username", "text":"hello"}
-    const json::value* toValue = message.if_contains("to");
-    if (toValue && toValue->is_string()) {
-        sendToUser(json::value_to<std::string>(*toValue), outgoing);
-        session->deliver(outgoing);
-    } else {
-        broadcast(outgoing);
-    }
-}
-
-void ChatServer::sendUserList() {
-    json::array users;
-    for (const auto& [username, session] : users_) {
-        users.push_back(json::value(username));
-    }
-
-    broadcast({{"type", "user_list"}, {"users", users}});
-}
-
-void ChatServer::broadcast(const json::object& message) {
-    for (const auto& session : sessions_) {
-        session->deliver(message);
-    }
-}
-
-void ChatServer::sendToUser(const std::string& username, const json::object& message) {
-    auto it = users_.find(username);
-    if (it != users_.end()) {
-        it->second->deliver(message);
+void TcpSession::closeFromError(const boost::system::error_code& ec) {
+    if (ec != boost::asio::error::operation_aborted) {
+        server_.onClientDisconnected(id_);
     }
 }
 
@@ -242,7 +169,7 @@ int main(int argc, char* argv[]) {
         }
 
         boost::asio::io_context io;
-        ChatServer server(io, port);
+        TcpServer server(io, port);
         io.run();
     } catch (const std::exception& e) {
         std::cerr << "Server error: " << e.what() << "\n";
