@@ -7,7 +7,7 @@ ChatWindow::ChatWindow(QWidget *parent)
     ui->setupUi(this);
     connect(ui->btnSend, &QPushButton::clicked, this, &ChatWindow::onSendButtonClicked);
     connect(ui->btnLogout, &QPushButton::clicked, this, &ChatWindow::logoutRequested);
-    connect(ui->btnSettings, &QPushButton::clicked, this, &ChatWindow::settingsRequested);
+
 }
 
 void ChatWindow::addMessage(const QString &sender, const QString &message, bool isMine)

@@ -5,7 +5,6 @@ MainWindow::MainWindow(QWidget *parent)
 {
     loginWindow = new LoginWindow(this);
     chatWindow = new ChatWindow(this);
-    settingsWindow = new SettingsWindow(this);
 
     setCentralWidget(loginWindow);
 

@@ -8,4 +8,5 @@ target_link_libraries(network
     Qt6::Network
     QCoro::Core
     QCoro::Network
+    
 )

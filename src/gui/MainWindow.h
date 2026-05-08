@@ -4,7 +4,7 @@
 #include <QMainWindow>
 #include "LoginWindow.h"
 #include "ChatWindow.h"
-#include "SettingsWindow.h"
+
 
 class MainWindow : public QMainWindow
 {
@@ -21,7 +21,7 @@ private slots:
 private:
     LoginWindow *loginWindow;
     ChatWindow *chatWindow;
-    SettingsWindow *settingsWindow;
+
 };
 
 #endif

@@ -1,4 +1,4 @@
-#include "chatmanager.h"
+#include "ChatManager.h"
 
 #include <QJsonDocument>
 #include <QJsonObject>

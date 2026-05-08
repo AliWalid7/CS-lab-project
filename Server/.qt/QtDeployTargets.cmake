@@ -1,0 +1,8 @@
+set(__QT_DEPLOY_TARGET_core_FILE /Users/lamara_saeed/Desktop/CS-lab-project/Server/src/core/libcore.a)
+set(__QT_DEPLOY_TARGET_core_TYPE STATIC_LIBRARY)
+set(__QT_DEPLOY_TARGET_network_FILE /Users/lamara_saeed/Desktop/CS-lab-project/Server/src/network/libnetwork.a)
+set(__QT_DEPLOY_TARGET_network_TYPE STATIC_LIBRARY)
+set(__QT_DEPLOY_TARGET_gui_FILE /Users/lamara_saeed/Desktop/CS-lab-project/Server/src/gui/libgui.a)
+set(__QT_DEPLOY_TARGET_gui_TYPE STATIC_LIBRARY)
+set(__QT_DEPLOY_TARGET_QtChatClient_FILE /Users/lamara_saeed/Desktop/CS-lab-project/Server/QtChatClient)
+set(__QT_DEPLOY_TARGET_QtChatClient_TYPE EXECUTABLE)
