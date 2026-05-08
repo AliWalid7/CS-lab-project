@@ -30,6 +30,8 @@ private slots:
 
 private:
     Ui::ChatWindow *ui;
+    ChatManager *chatManager;
+    JsonNetworkClient *networkClient;
 };
 
 #endif
