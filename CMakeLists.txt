@@ -46,6 +46,7 @@ add_subdirectory(src/network)
 
 # =========================
 # TESTING
+# Unit testing configuration
 # =========================
 
 enable_testing()
