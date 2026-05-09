@@ -12,4 +12,7 @@ add_executable(chat_server
     JsonProtocol.cpp
 )
 
-target_include_directories(chat_server PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(chat_server PRIVATE
+    ${Boost_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
