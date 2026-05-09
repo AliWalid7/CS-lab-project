@@ -47,8 +47,8 @@ private:
         AppState *appState;
         AuthManager *authManager;
         ChatManager *chatManager;
-        JsonNetworkClient *networkClient;
-
+    NetworkClient *networkClient;
+    
         QString currentUsername;
 };
 

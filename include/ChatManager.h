@@ -3,6 +3,7 @@
 #include <QList>
 #include <QString>
 #include <QStringList>
+#include "Message.h"
 
 struct ChatMessage {
     QString username;

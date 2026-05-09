@@ -2,11 +2,12 @@ add_library(network
     JsonNetworkClient.cpp
 )
 
-target_include_directories(network PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(network PUBLIC
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/src/network
+)
 
-target_link_libraries(network
+target_link_libraries(network PUBLIC
+    Qt6::Core
     Qt6::Network
-    QCoro::Core
-    QCoro::Network
-    
 )

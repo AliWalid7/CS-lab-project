@@ -1,6 +1,7 @@
 #include "JsonNetworkClient.h"
 #include <QJsonDocument>
 #include <QDebug>
+#include <QJsonArray>
 
 NetworkClient::NetworkClient(QObject *parent)
     : QObject(parent)

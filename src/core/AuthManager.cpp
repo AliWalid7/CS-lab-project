@@ -1,4 +1,4 @@
-#include "Authmanager.h"
+#include "AuthManager.h"
 #include <QRegularExpression>
 
 AuthManager::AuthManager(QObject* parent)

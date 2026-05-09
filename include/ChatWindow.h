@@ -4,6 +4,7 @@
 #include <QWidget>
 #include <QString>
 #include <QStringList>
+#include "Message.h"
 
 namespace Ui {
 class ChatWindow;

@@ -9,36 +9,67 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
 # Qt
-find_package(Qt6 REQUIRED COMPONENTS 
-    Core 
-    Gui 
-    Widgets 
+find_package(Qt6 REQUIRED COMPONENTS
+    Core
+    Gui
+    Widgets
     Network
 )
 
-# QCoro
-find_package(QCoro6 REQUIRED COMPONENTS Core Network)
+# QCoro disabled for testing
+# find_package(QCoro6 REQUIRED COMPONENTS Core Network)
 
-# Add subdirectories (must match folder names exactly)
+# Modules
 add_subdirectory(src/core)
 add_subdirectory(src/network)
-add_subdirectory(src/gui)
 
-# Main executable
-add_executable(${PROJECT_NAME}
-    src/main.cpp
+# GUI disabled temporarily
+# add_subdirectory(src/gui)
+
+# =========================
+# MAIN APPLICATION DISABLED
+# =========================
+
+# add_executable(${PROJECT_NAME}
+#     src/main.cpp
+# )
+
+# target_link_libraries(${PROJECT_NAME} PRIVATE
+#     Qt6::Core
+#     Qt6::Gui
+#     Qt6::Widgets
+#     Qt6::Network
+#
+#     core
+#     network
+# )
+
+# =========================
+# TESTING
+# =========================
+
+enable_testing()
+
+find_package(GTest REQUIRED)
+
+include_directories(
+    include
+    tests
 )
 
-# Link everything
-target_link_libraries(${PROJECT_NAME} PRIVATE
+add_executable(runTests
+    tests/client_tests.cpp
+    tests/server_tests.cpp
+)
+
+target_link_libraries(runTests PRIVATE
+    GTest::gtest
+    GTest::gmock
+    GTest::gtest_main
+    core
+    network
     Qt6::Core
-    Qt6::Gui
-    Qt6::Widgets
     Qt6::Network
-    QCoro::Core
-    QCoro::Network
-
-    core        
-    network     
-    gui         
 )
+
+add_test(NAME runTests COMMAND runTests)
