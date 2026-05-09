@@ -2,179 +2,204 @@
 #include "JsonProtocol.h"
 
 #include <boost/asio.hpp>
+#include <boost/asio/as_tuple.hpp>
 #include <boost/json/src.hpp>
 
 #include <deque>
 #include <iostream>
 #include <memory>
-#include <set>
+#include <optional>
 #include <string>
 #include <unordered_map>
 
+using boost::asio::awaitable;
+using boost::asio::buffer;
+using boost::asio::co_spawn;
+using boost::asio::detached;
+using boost::asio::use_awaitable;
+using boost::asio::as_tuple;
 using boost::asio::ip::tcp;
+
 namespace json = boost::json;
 
-class TcpServer;
+struct ClientConnection {
+    int id;
+    tcp::socket socket;
+    std::string incomingData;
+    std::deque<std::string> outgoingMessages;
+    bool writeLoopRunning = false;
 
-class TcpSession : public std::enable_shared_from_this<TcpSession> {
-public:
-    TcpSession(int id, tcp::socket socket, TcpServer& server)
-        : id_(id), socket_(std::move(socket)), server_(server) {}
-
-    int id() const { return id_; }
-    void start();
-    void deliver(const json::object& message);
-
-private:
-    void readLine();
-    void writeNext();
-    void closeFromError(const boost::system::error_code& ec);
-
-    int id_;
-    tcp::socket socket_;
-    TcpServer& server_;
-    boost::asio::streambuf buffer_;
-    std::deque<std::string> outbox_;
+    ClientConnection(int clientId, tcp::socket clientSocket)
+        : id(clientId), socket(std::move(clientSocket)) {}
 };
 
-class TcpServer {
-public:
-    TcpServer(boost::asio::io_context& io, unsigned short port)
-        : acceptor_(io, tcp::endpoint(tcp::v4(), port)),
-          chatService_([this](int clientId, const json::object& message) {
-              sendToClient(clientId, message);
-          }) {
-        std::cout << "Server listening on port " << port << "\n";
-        acceptClients();
+std::unordered_map<int, std::shared_ptr<ClientConnection>> clients;
+std::unique_ptr<ChatService> chatService;
+int nextClientId = 1;
+
+awaitable<void> write_messages(std::shared_ptr<ClientConnection> client);
+
+void disconnect_client(int clientId) {
+    auto it = clients.find(clientId);
+
+    if (it == clients.end()) {
+        return;
     }
 
-    void onClientConnected(const std::shared_ptr<TcpSession>& session) {
-        sessions_[session->id()] = session;
-        chatService_.addClient(session->id());
+    std::cout << "Client " << clientId << " disconnected\n";
+
+    boost::system::error_code ignored;
+    it->second->socket.close(ignored);
+
+    clients.erase(it);
+
+    if (chatService) {
+        chatService->removeClient(clientId);
+    }
+}
+
+void send_to_client(int clientId, const json::object& message) {
+    auto it = clients.find(clientId);
+
+    if (it == clients.end()) {
+        return;
     }
 
-    void onClientDisconnected(int clientId) {
-        sessions_.erase(clientId);
-        chatService_.removeClient(clientId);
-        std::cout << "Client " << clientId << " disconnected\n";
+    std::shared_ptr<ClientConnection> client = it->second;
+
+    client->outgoingMessages.push_back(JsonProtocol::serializeMessage(message));
+
+    if (!client->writeLoopRunning) {
+        client->writeLoopRunning = true;
+        co_spawn(client->socket.get_executor(), write_messages(client), detached);
     }
+}
 
-    void onMessageReceived(int clientId, const json::object& message) {
-        chatService_.handleMessage(clientId, message);
-    }
+awaitable<void> write_messages(std::shared_ptr<ClientConnection> client) {
+    while (!client->outgoingMessages.empty()) {
+        std::string message = client->outgoingMessages.front();
 
-private:
-    void acceptClients() {
-        acceptor_.async_accept([this](boost::system::error_code ec, tcp::socket socket) {
-            if (!ec) {
-                int clientId = nextClientId_++;
-                auto session = std::make_shared<TcpSession>(clientId, std::move(socket), *this);
-                onClientConnected(session);
-                session->start();
-            } else {
-                std::cerr << "Accept error: " << ec.message() << "\n";
-            }
+        auto [ec, bytes_written] = co_await boost::asio::async_write(
+            client->socket,
+            buffer(message),
+            as_tuple(use_awaitable)
+        );
 
-            acceptClients();
-        });
-    }
+        if (ec) {
+            std::cout << "Write error for client " << client->id << ": "
+                      << ec.message() << "\n";
 
-    void sendToClient(int clientId, const json::object& message) {
-        auto it = sessions_.find(clientId);
-        if (it != sessions_.end()) {
-            it->second->deliver(message);
+            disconnect_client(client->id);
+            co_return;
         }
+
+        client->outgoingMessages.pop_front();
     }
 
-    tcp::acceptor acceptor_;
-    int nextClientId_ = 1;
-    std::unordered_map<int, std::shared_ptr<TcpSession>> sessions_;
-    ChatService chatService_;
-};
-
-void TcpSession::start() {
-    std::cout << "Client " << id_ << " connected: " << socket_.remote_endpoint() << "\n";
-    readLine();
+    client->writeLoopRunning = false;
 }
 
-void TcpSession::deliver(const json::object& message) {
-    std::string data = JsonProtocol::serializeMessage(message);
-    bool writeInProgress = !outbox_.empty();
-    outbox_.push_back(std::move(data));
-
-    if (!writeInProgress) {
-        writeNext();
+void handle_complete_json_line(int clientId, const std::string& line) {
+    if (line.empty()) {
+        return;
     }
+
+    std::string errorMessage;
+    std::optional<json::object> parsedMessage =
+        JsonProtocol::parseLine(line, errorMessage);
+
+    if (!parsedMessage.has_value()) {
+        send_to_client(clientId, {
+            {"type", "error"},
+            {"message", errorMessage}
+        });
+        return;
+    }
+
+    chatService->handleMessage(clientId, *parsedMessage);
 }
 
-void TcpSession::readLine() {
-    auto self = shared_from_this();
+awaitable<void> handle_client(std::shared_ptr<ClientConnection> client) {
+    std::cout << "Client " << client->id << " connected\n";
 
-    boost::asio::async_read_until(socket_, buffer_, '\n',
-        [this, self](boost::system::error_code ec, std::size_t) {
-            if (ec) {
-                closeFromError(ec);
-                return;
-            }
+    char data[1024];
 
-            std::istream input(&buffer_);
-            std::string line;
-            std::getline(input, line);
+    while (true) {
+        auto [ec, bytes_read] = co_await client->socket.async_read_some(
+            buffer(data),
+            as_tuple(use_awaitable)
+        );
+
+        if (ec) {
+            std::cout << "Read error for client " << client->id << ": "
+                      << ec.message() << "\n";
+
+            disconnect_client(client->id);
+            co_return;
+        }
+
+        client->incomingData.append(data, bytes_read);
+
+        std::size_t newlinePosition;
+
+        while ((newlinePosition = client->incomingData.find('\n')) != std::string::npos) {
+            std::string line = client->incomingData.substr(0, newlinePosition);
+            client->incomingData.erase(0, newlinePosition + 1);
 
             if (!line.empty() && line.back() == '\r') {
                 line.pop_back();
             }
 
-            std::string errorMessage;
-            std::optional<json::object> message = JsonProtocol::parseLine(line, errorMessage);
-
-            if (!message.has_value()) {
-                deliver({{"type", "error"}, {"message", errorMessage}});
-            } else {
-                server_.onMessageReceived(id_, *message);
-            }
-
-            readLine();
-        });
+            handle_complete_json_line(client->id, line);
+        }
+    }
 }
 
-void TcpSession::writeNext() {
-    auto self = shared_from_this();
+awaitable<void> listener(unsigned short port) {
+    auto ioContext = co_await boost::asio::this_coro::executor;
 
-    boost::asio::async_write(socket_, boost::asio::buffer(outbox_.front()),
-        [this, self](boost::system::error_code ec, std::size_t) {
-            if (ec) {
-                closeFromError(ec);
-                return;
-            }
+    tcp::acceptor acceptor(ioContext, tcp::endpoint(tcp::v4(), port));
 
-            outbox_.pop_front();
-            if (!outbox_.empty()) {
-                writeNext();
-            }
-        });
-}
+    std::cout << "Server is listening on port " << port << "...\n";
 
-void TcpSession::closeFromError(const boost::system::error_code& ec) {
-    if (ec != boost::asio::error::operation_aborted) {
-        server_.onClientDisconnected(id_);
+    while (true) {
+        auto [ec, socket] = co_await acceptor.async_accept(
+            as_tuple(use_awaitable)
+        );
+
+        if (ec) {
+            std::cout << "Accept error: " << ec.message() << "\n";
+            continue;
+        }
+
+        int clientId = nextClientId++;
+
+        auto client = std::make_shared<ClientConnection>(
+            clientId,
+            std::move(socket)
+        );
+
+        clients[clientId] = client;
+        chatService->addClient(clientId);
+
+        co_spawn(ioContext, handle_client(client), detached);
     }
 }
 
 int main(int argc, char* argv[]) {
-    try {
-        unsigned short port = 54321;
-        if (argc > 1) {
-            port = static_cast<unsigned short>(std::stoi(argv[1]));
-        }
+    unsigned short port = 54321;
 
-        boost::asio::io_context io;
-        TcpServer server(io, port);
-        io.run();
-    } catch (const std::exception& e) {
-        std::cerr << "Server error: " << e.what() << "\n";
-        return 1;
+    if (argc > 1) {
+        port = static_cast<unsigned short>(std::stoi(argv[1]));
     }
+
+    chatService = std::make_unique<ChatService>(send_to_client);
+
+    boost::asio::io_context ioContext;
+
+    co_spawn(ioContext, listener(port), detached);
+
+    ioContext.run();
 
     return 0;
 }
