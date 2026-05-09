@@ -4,77 +4,56 @@
 #include "network/JsonNetworkClient.h"
 
 ChatWindow::ChatWindow(QWidget *parent)
-    : QWidget(parent), ui(new Ui::ChatWindow), chatManager(nullptr), networkClient(nullptr)
+    : QWidget(parent), ui(new Ui::ChatWindow)
 {
     ui->setupUi(this);
     
-    chatManager = new ChatManager(this);
-    networkClient = new JsonNetworkClient(this);
-    
     connect(ui->btnSend, &QPushButton::clicked, this, &ChatWindow::onSendButtonClicked);
     connect(ui->btnLogout, &QPushButton::clicked, this, &ChatWindow::logoutRequested);
-    connect(ui->btnSettings, &QPushButton::clicked, this, &ChatWindow::settingsRequested);
     
-    connect(chatManager, &ChatManager::historyChanged, this, &ChatWindow::updateChatHistory);
-    connect(chatManager, &ChatManager::usersChanged, this, &ChatWindow::updateUserList);
+    ChatWindow::~ChatWindow() {
+        delete ui;
+    }
     
-    connect(networkClient, &JsonNetworkClient::messageReceived, this, &ChatWindow::addMessage);
+    void ChatWindow::onSendButtonClicked()
+    {
+        QString text = ui->txtMessageInput->text().trimmed();
+        if (!text.isEmpty()) {
+            emit sendMessageRequested(text);
+            ui->txtMessageInput->clear();
+        }
+    }
     
-    connect(networkClient, &JsonNetworkClient::connected, this, [this]() {
-        showConnectionStatus("Connected", true);
-    });
-
-    connect(networkClient, &JsonNetworkClient::disconnected, this, [this]() {
-        showConnectionStatus("Disconnected", false);
-    });
-
-    connect(networkClient, &JsonNetworkClient::errorOccurred, this,
-            [this](const QString &error) {
-        showConnectionStatus(error, false);
-    });
-}
-
-ChatWindow::~ChatWindow() {
-    delete ui;
-    delete chatManager;
-    delete networkClient;
-}
-
-void ChatWindow::onSendButtonClicked()
-{
-    QString text = ui->txtMessageInput->text();
-    if (!text.isEmpty()) {
-        chatManager->addMessage("CurrentUser", text);
-        networkClient->sendChatMessage("CurrentUser", text);
+    void ChatWindow::addMessage(const QString &sender, const QString &message, bool isMine)
+    {
+        QString formatted;
+        if (isMine) {
+            formatted = QString("<p><b style='color:blue;'>You:</b> %1</p>").arg(message.toHtmlEscaped());
+        } else {
+            formatted = QString("<p><b>%1:</b> %2</p>").arg(sender.toHtmlEscaped(), message.toHtmlEscaped());
+        }
+        ui->txtChat->append(formatted);
+    }
+    
+    void ChatWindow::updateUserList(const QStringList &users)
+    {
+        ui->listUsers->clear();
+        ui->listUsers->addItems(users);
+    }
+    
+    void ChatWindow::updateChatHistory(const QList<Message> &history)
+    {
+        ui->txtChat->clear();
+        for (const auto &msg : history) {
+            addMessage(msg.username, msg.text, false);
+        }
+    }
+    
+    void ChatWindow::showConnectionStatus(const QString &status, bool isConnected)
+    {
+        QString color = isConnected ? "green" : "red";
+    }
+    void ChatWindow::clearInput()
+    {
         ui->txtMessageInput->clear();
     }
-}
-
-void ChatWindow::addMessage(const QString &sender, const QString &message, bool isMine)
-{
-    QString formatted = isMine
-        ? "You: " + message
-        : sender + ": " + message;
-    
-    ui->txtChat->append(formatted);
-}
-
-void ChatWindow::updateUserList(const QStringList &users)
-{
-    ui->listUsers->clear();
-    ui->listUsers->addItems(users);
-}
-
-void ChatWindow::updateChatHistory(const QList<Message> &history)
-{
-    ui->txtChat->clear();
-    for (const auto &msg : history) {
-        addMessage(msg.username, msg.text, false);
-    }
-}
-
-void ChatWindow::showConnectionStatus(const QString &status, bool isConnected)
-{
-    ui->lblStatus->setText(status);
-    ui->btnSend->setEnabled(isConnected);
-}
