@@ -18,6 +18,7 @@ find_package(Qt6 REQUIRED COMPONENTS
 
 # QCoro disabled for testing
 # find_package(QCoro6 REQUIRED COMPONENTS Core Network)
+find_package(SQLite3 REQUIRED)
 
 # Modules
 add_subdirectory(src/core)

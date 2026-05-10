@@ -3,7 +3,7 @@ add_library(core
     AuthManager.cpp
     ChatManager.cpp
     Message.cpp
-
+    DatabaseManager.cpp
 )
 
 target_include_directories(core PUBLIC
@@ -14,4 +14,5 @@ target_include_directories(core PUBLIC
 target_link_libraries(core PUBLIC
     Qt6::Core
     network
+    SQLite::SQLite3
 )

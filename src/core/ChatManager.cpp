@@ -1,6 +1,10 @@
 #include "ChatManager.h"
+#include "DatabaseManager.h"
 
-ChatManager::ChatManager(QObject *parent) : QObject(parent) {}
+ChatManager::ChatManager(QObject *parent) : QObject(parent) {
+    DatabaseManager db;
+    db.openDatabase();
+}
 
 bool ChatManager::addMessage(const QString& username, const QString& text)
 {
@@ -10,6 +14,12 @@ bool ChatManager::addMessage(const QString& username, const QString& text)
     msg.username = username;
     msg.text = text;
     m_history.append(msg);
+    DatabaseManager db;
+    db.saveMessage(
+    username.toStdString(),
+    "global",
+    text.toStdString()
+);
     historyChanged(m_history);
     return true;
 }
