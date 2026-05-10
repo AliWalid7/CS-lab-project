@@ -16,7 +16,11 @@ class ChatManager : public QObject
 public:
     ChatManager(QObject *parent = nullptr);
 
-    bool addMessage(const QString& username, const QString& text);
+    bool addMessage(
+    const QString& sender,
+    const QString& receiver,
+    const QString& text
+);
     QList<Message> getHistory() const;
     void clearHistory();
 
