@@ -6,18 +6,22 @@ ChatManager::ChatManager(QObject *parent) : QObject(parent) {
     db.openDatabase();
 }
 
-bool ChatManager::addMessage(const QString& username, const QString& text)
+bool ChatManager::addMessage(
+    const QString& sender,
+    const QString& receiver,
+    const QString& text
+)
 {
-    if (username.isEmpty() || text.isEmpty())
+    if (sender.isEmpty() || text.isEmpty())
         return false;
     Message msg;
-    msg.username = username;
+    msg.username = sender;
     msg.text = text;
     m_history.append(msg);
     DatabaseManager db;
     db.saveMessage(
-    username.toStdString(),
-    "global",
+    sender.toStdString(),
+    receiver.toStdString(),
     text.toStdString()
 );
     historyChanged(m_history);
