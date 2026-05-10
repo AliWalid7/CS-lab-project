@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Group Chat</title>
+</head>
+<body>
+
+<h1>Group Chat</h1>
+
+<input id="username" placeholder="Username">
+<input id="group" placeholder="Group Name">
+
+<button onclick="joinGroup()">Join Group</button>
+
+<br><br>
+
+<input id="messageInput" placeholder="Message">
+
+<button onclick="sendMessage()">Send</button>
+
+<ul id="messages"></ul>
+
+<script src="/socket.io/socket.io.js"></script>
+
+<script>
+
+const socket = io();
+
+function joinGroup() {
+
+    const username =
+        document.getElementById("username").value;
+
+    const group =
+        document.getElementById("group").value;
+
+    window.currentUser = username;
+    window.currentGroup = group;
+
+    socket.emit("joinGroup", {
+        username,
+        group
+    });
+}
+
+function sendMessage() {
+
+    const text =
+        document.getElementById("messageInput").value;
+
+    socket.emit("sendMessage", {
+        group: window.currentGroup,
+        user: window.currentUser,
+        text
+    });
+}
+
+socket.on("message", (msg) => {
+
+    const li = document.createElement("li");
+
+    li.textContent =
+        `${msg.user}: ${msg.text}`;
+
+    document.getElementById("messages")
+        .appendChild(li);
+});
+
+</script>
+
+</body>
+</html>
