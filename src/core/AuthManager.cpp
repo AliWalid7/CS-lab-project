@@ -24,8 +24,6 @@ bool AuthManager::validateUsername(const QString& username, QString* errorOut) {
                    .arg(MAX_USERNAME_LEN));
         return false;
     }
-    // Allow letters, digits, underscore, hyphen. No whitespace, no symbols
-    // that could break the wire protocol.
     static const QRegularExpression allowed(QStringLiteral("^[A-Za-z0-9_-]+$"));
     if (!allowed.match(username).hasMatch()) {
         setErr(QStringLiteral("Username may contain only letters, digits, "
@@ -56,7 +54,6 @@ bool AuthManager::validatePassword(const QString& password, QString* errorOut) {
                    .arg(MAX_PASSWORD_LEN));
         return false;
     }
-    // Reject control characters / whitespace at edges.
     if (password.trimmed() != password) {
         setErr(QStringLiteral("Password cannot start or end with whitespace."));
         return false;
@@ -66,23 +63,22 @@ bool AuthManager::validatePassword(const QString& password, QString* errorOut) {
     return true;
 }
 
-void AuthManager::attemptLogin(const QString& username, const QString& password) {
-    // Validate before we ever touch the network.
+bool AuthManager::attemptLogin(const QString& username, const QString& password) {
     QString err;
 
     if (!validateUsername(username, &err)) {
-        emit validationError(QStringLiteral("username"), err);
+        emit validationError(QStringLiteral("username") + ": " + err);
         emit loginFailed(err);
-        return;
+        return false;
     }
     if (!validatePassword(password, &err)) {
-        emit validationError(QStringLiteral("password"), err);
+        emit validationError(QStringLiteral("password") + ": " + err);
         emit loginFailed(err);
-        return;
+        return false;
     }
 
     m_currentUser = username;
-    emit authRequested(username, password);
+    return true;
 }
 
 void AuthManager::logout() {
@@ -91,9 +87,6 @@ void AuthManager::logout() {
     const QString user = m_currentUser;
     m_loggedIn = false;
     m_currentUser.clear();
-
-    emit logoutRequested(user);
-    emit loggedOut();
 }
 
 void AuthManager::onServerLoginResponse(bool success, const QString& reason) {
@@ -101,7 +94,6 @@ void AuthManager::onServerLoginResponse(bool success, const QString& reason) {
         m_loggedIn = true;
         emit loginSucceeded(m_currentUser);
     } else {
-        // Roll back the optimistic username we stored in attemptLogin.
         m_currentUser.clear();
         m_loggedIn = false;
         emit loginFailed(reason.isEmpty()
@@ -110,9 +102,3 @@ void AuthManager::onServerLoginResponse(bool success, const QString& reason) {
     }
 }
 
-void AuthManager::onConnectionLost() {
-    if (!m_loggedIn) return;
-    m_loggedIn = false;
-    m_currentUser.clear();
-    emit loggedOut();
-}

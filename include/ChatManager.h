@@ -1,29 +1,17 @@
 #pragma once
-#include <QObject>
-#include <QList>
 #include <QString>
-#include <QStringList>
+#include <QList>
+#include <QObject>
 #include "Message.h"
-
-struct ChatMessage {
-    QString username;
-    QString text;
-};
 
 class ChatManager : public QObject
 {
     Q_OBJECT
 public:
     ChatManager(QObject *parent = nullptr);
-
-    bool addMessage(
-    const QString& sender,
-    const QString& receiver,
-    const QString& text
-);
+    bool addMessage(const QString& username, const QString& text);
     QList<Message> getHistory() const;
     void clearHistory();
-
     bool addUser(const QString& username);
     bool removeUser(const QString& username);
     QStringList getUsers() const;

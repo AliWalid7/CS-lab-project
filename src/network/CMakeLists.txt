@@ -1,5 +1,8 @@
 add_library(network
     JsonNetworkClient.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/Message.cpp
+    ${CMAKE_SOURCE_DIR}/include/JsonNetworkClient.h
+    ${CMAKE_SOURCE_DIR}/include/Message.h
 )
 
 target_include_directories(network PUBLIC

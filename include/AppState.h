@@ -7,10 +7,8 @@ class AppState : public QObject
     Q_OBJECT
 public:
     AppState(QObject *parent = nullptr);
-
     QString currentScreen() const;
     void setCurrentScreen(const QString& screen);
-
     bool isConnected() const;
     void setConnected(bool status);
 

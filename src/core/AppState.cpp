@@ -1,9 +1,7 @@
 #include "AppState.h"
 
-#include "types.h"
-
 AppState::AppState(QObject *parent)
-    : QObject(parent), m_currentScreen(AppScreens::Login), m_connected(false)
+    : QObject(parent), m_currentScreen("Login"), m_connected(false)
 {
 }
 

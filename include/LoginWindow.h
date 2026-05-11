@@ -2,7 +2,6 @@
 #define LOGINWINDOW_H
 
 #include <QWidget>
-class AuthManager;
 
 namespace Ui {
 class LoginWindow;
@@ -30,7 +29,6 @@ private slots:
 
 private:
     Ui::LoginWindow *ui;
-    AuthManager *authManager;
 };
 
 #endif

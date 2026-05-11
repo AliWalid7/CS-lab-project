@@ -6,25 +6,21 @@ ChatManager::ChatManager(QObject *parent) : QObject(parent) {
     db.openDatabase();
 }
 
-bool ChatManager::addMessage(
-    const QString& sender,
-    const QString& receiver,
-    const QString& text
-)
+bool ChatManager::addMessage(const QString& username, const QString& text)
 {
-    if (sender.isEmpty() || text.isEmpty())
+    if (username.isEmpty() || text.isEmpty())
         return false;
     Message msg;
-    msg.username = sender;
+    msg.username = username;
     msg.text = text;
     m_history.append(msg);
     DatabaseManager db;
     db.saveMessage(
-    sender.toStdString(),
-    receiver.toStdString(),
+    username.toStdString(),
+    "",
     text.toStdString()
 );
-    historyChanged(m_history);
+    emit historyChanged(m_history);
     return true;
 }
 
@@ -36,7 +32,7 @@ QList<Message> ChatManager::getHistory() const
 void ChatManager::clearHistory()
 {
     m_history.clear();
-    historyChanged(m_history);
+    emit historyChanged(m_history);
 }
 
 bool ChatManager::addUser(const QString& username)
@@ -48,7 +44,7 @@ bool ChatManager::addUser(const QString& username)
         if (u.toLower() == lower)
             return false;
     m_users.append(username);
-    usersChanged(m_users);
+    emit usersChanged(m_users);
     return true;
 }
 
@@ -58,7 +54,7 @@ bool ChatManager::removeUser(const QString& username)
     for (int i = 0; i < m_users.size(); i++) {
         if (m_users[i].toLower() == lower) {
             m_users.removeAt(i);
-            usersChanged(m_users);
+            emit usersChanged(m_users);
             return true;
         }
     }
@@ -73,5 +69,5 @@ QStringList ChatManager::getUsers() const
 void ChatManager::clearUsers()
 {
     m_users.clear();
-    usersChanged(m_users);
+    emit usersChanged(m_users);
 }

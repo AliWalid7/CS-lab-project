@@ -17,8 +17,7 @@ class ChatWindow : public QWidget
 public:
     explicit ChatWindow(QWidget *parent = nullptr);
     ~ChatWindow();
-    
-    //ugghh communication w/ mainwind manager
+
     Q_SIGNAL void sendMessageRequested(const QString &message);
     Q_SIGNAL void logoutRequested();
 
@@ -27,13 +26,13 @@ public slots:
     void updateUserList(const QStringList &users);
     void showConnectionStatus(const QString &status, bool isConnected);
     void updateChatHistory(const QList<Message> &history);
+    void clearChat();
     
 private slots:
     void onSendButtonClicked();
 
 private:
     Ui::ChatWindow *ui;
-    
 };
 
 #endif

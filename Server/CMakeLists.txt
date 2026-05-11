@@ -16,3 +16,8 @@ target_include_directories(chat_server PRIVATE
     ${Boost_INCLUDE_DIRS}
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
+
+target_link_libraries(chat_server PRIVATE
+    mswsock
+    ws2_32
+)

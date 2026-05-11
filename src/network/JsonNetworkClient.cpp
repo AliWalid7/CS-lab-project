@@ -61,41 +61,62 @@ void NetworkClient::setupConnections() {
     });
 
     connect(socket, &QTcpSocket::readyRead, this, [this]() {
-        QByteArray data = socket->readAll();
-        QJsonDocument doc = QJsonDocument::fromJson(data);
+        receiveBuffer.append(socket->readAll());
 
-        if (!doc.isObject()) {
-            emit errorOccurred("Invalid JSON");
-            return;
-        }
-
-        QJsonObject json = doc.object();
-        QString type = json["type"].toString();
-        
-        if (type == "join_success") {
-            emit joinSuccess();
-        }
-        else if (type == "broadcast") {
-            Message msg;
-            msg.username = json["username"].toString();
-            msg.text = json["text"].toString();
-            emit messageReceived(msg);
-        }
-        else if (type == "error") {
-            QString errorMsg = json["message"].toString();
-            emit errorOccurred(errorMsg);
-        }
-        else if (type == "user_list") {
-            QStringList users;
-            QJsonArray usersArray = json["users"].toArray();
-            for (const auto& user : usersArray) {
-                users.append(user.toString());
+        while (true) {
+            int newlineIndex = receiveBuffer.indexOf('\n');
+            if (newlineIndex < 0) {
+                break;
             }
-            emit userListReceived(users);
-        }
-        else if (type == "user_left") {
-            QString username = json["username"].toString();
-            emit userLeft(username);
+
+            QByteArray line = receiveBuffer.left(newlineIndex);
+            receiveBuffer.remove(0, newlineIndex + 1);
+
+            if (!line.isEmpty() && line.endsWith('\r')) {
+                line.chop(1);
+            }
+
+            if (line.trimmed().isEmpty()) {
+                continue;
+            }
+
+            QJsonParseError parseError;
+            QJsonDocument doc = QJsonDocument::fromJson(line, &parseError);
+
+            if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+                emit errorOccurred("Invalid JSON");
+                continue;
+            }
+
+            QJsonObject json = doc.object();
+            QString type = json["type"].toString();
+
+            if (type == "join_success") {
+                emit joinSuccess();
+            }
+            else if (type == "broadcast") {
+                Message msg;
+                msg.type = type;
+                msg.username = json["username"].toString();
+                msg.text = json["text"].toString();
+                emit messageReceived(msg);
+            }
+            else if (type == "error") {
+                QString errorMsg = json["message"].toString();
+                emit errorOccurred(errorMsg);
+            }
+            else if (type == "user_list") {
+                QStringList users;
+                QJsonArray usersArray = json["users"].toArray();
+                for (const auto& user : usersArray) {
+                    users.append(user.toString());
+                }
+                emit userListReceived(users);
+            }
+            else if (type == "user_left") {
+                QString username = json["username"].toString();
+                emit userLeft(username);
+            }
         }
     });
 }
