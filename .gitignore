@@ -1,2 +1,13 @@
 node_modules/
 .env
+.DS_Store
+build/
+cmake-build-*/
+.qtc_clangd/
+*_autogen/
+*.a
+*.o
+*.d
+CMakeCache.txt
+CMakeFiles/
+Makefile
