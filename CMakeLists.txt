@@ -26,9 +26,8 @@ find_package(Boost REQUIRED COMPONENTS json)
 # Modules
 add_subdirectory(src/core)
 add_subdirectory(src/network)
-
-# GUI enabled for milestone requirements
 add_subdirectory(src/gui)
+add_subdirectory(Server)
 
 # =========================
 # MAIN APPLICATION ENABLED
